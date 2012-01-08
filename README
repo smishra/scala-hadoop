@@ -1,0 +1,90 @@
+Hadoop mapreduce using Scala
+
+###############################################################################################
+Hadoop Distribution: Cloudera (https://ccp.cloudera.com/display/CDHDOC/CDH3+Installation+Guide)
+Hadoop Version: 0.20.2-ddh3u2 (Maverick)
+Hadoop Installation Mode: Pseudo-Distribution Mode
+Linux Distribution: Ubuntu 11.10
+
+
+###############################################################################################
+Examples
+
+WordCount:
+
+There are two version of WordCount you will find here: WordCount and WordCountDebug. 
+1. WordCount: This is the program that is based on the latest Hadoop APIs (0.20.2). 
+2. WordCountDebug: This is similar to the WordCount except it has debug messages going to the syslog. This program also has
+                   a mrunit test case WordCountMapperTest that tests the WordCountMapper class.
+                   
+Building/archiving Hadoop Job 
+---------------------------------
+The build is based on Maven2. The package phase also generates a ***-job.jar file that contains the name of the class that 
+should be used as main Job class. The name of the class is defined as part maven-assemlby-plugin's archive section. This 
+is the class that will be run Hadoop. Currently its set to "us.evosys.hadoop.jobs.WordCount".
+
+Runnig the Hadoop Job
+----------------------------------
+If not already created the input files in HDFS that will be used for counting the words, you can do so
+
+>> hadoop dfs -mkdir /usr/smishra/wordcount/input
+ 
+Create two files file0 and file1 on your local system and add words that will be counted
+>> vi data/file0
+>> vi data/file1
+
+Move these files to HDFS 
+
+>> hadoop dfs -put data/file0 /usr/smishra/wordcount/input
+>> hadoop dfs -put data/file1 /usr/smishra/wordcount/input
+
+You can create as many input files as you want. 
+Now, you are ready to run the word count
+
+>> mvn clean package
+>> hadoop jar target/examples-1.0-job.jar /usr/smishra/wordcount/input/file01 /usr/smishra/wordcount/input/file02 /usr/smishra/wordcount/output
+
+Note that the last argument is always the output director where hadoop will write the results. In our case its /usr/smishra/wordcount/output.
+
+You will start seeing messages on your console the most important being the one that contains the JobId something like
+"12/01/07 16:40:41 INFO mapred.JobClient: Running job: job_201201071515_0004"
+followed by map 0% reduce 0% etc. Once the program finishes you can check the results.
+
+>> hadoop dfs -cat /usr/smishra/wordcount/output/part-r-0000
+
+The actual file name may vary. To check run following command
+
+>> hadopp dfs -ls /usr/smishra/wordcount/output
+
+Congratulations! you are done with wordcount program :)
+
+
+Viewing the Logs
+----------------
+Hadoop generates tons of log files but the most important for you are given under (you need to be root to see these)
+
+>> sudo su -
+>> ls -al /var/log/hadoop/userlogs
+
+Above folder will contain subfolders for each job that you run. To check out your logs you need the job Id that 
+hadoop prints when you run the job something like "12/01/07 16:40:41 INFO mapred.JobClient: Running job: job_201201071515_0004".
+Now you can cat the messages related to your job. The job folder contains many subfolders related to different map and reduce 
+attempts that hadoop makes while running the job. It is the attempt folder that contains the actual log files, the most interesting
+being syslog. Following is the example of printing the syslog messages for one of my runs
+
+>> cat /var/log/hadoop/userlogs/job_201201071515_0004/attempt_201201071515_0004_m_000000_0/syslog
+>> cat /var/log/hadoop/userlogs/job_201201071515_0004/attempt_201201071515_0004_r_000000_0/syslog
+
+These files will contain messages from hadoop as well as your log messages - in case you are running WordCountDebug you will
+all the messages that are being printed by slf4j.
+
+
+Troubleshooting
+---------------
+1. Running the program will fail if output folder already exists, you can delete the folder using
+
+>> hadoop dfs -rmr /usr/smishra/wordcount/output
+
+
+
+
